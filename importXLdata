@@ -1,0 +1,173 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package accounting_company;
+import com.mysql.jdbc.Connection;
+import com.mysql.jdbc.PreparedStatement;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.DriverManager;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.table.DefaultTableModel;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+
+
+//Read more: http://mrbool.com/reading-excel-file-with-java/24562#ixzz2sqYl1Lvo
+
+/**
+ *
+ * @author Mony
+ */
+public class iportEXCELdata extends JFrame
+{
+    
+    
+    private JTable table;
+    private List<ArrayList<JLabel[]>> list ;
+    private JButton btn_import;
+    public iportEXCELdata() //throws IOException
+    {
+        super("Import Data from EXCEL File");
+        this.setSize(550, 400);
+        this.setLocationRelativeTo(null); 
+        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        this.setLayout(null);
+        table = new JTable();
+        table.setSize(500, 200);
+        table.setLocation(20, 20);
+        table.setAutoscrolls(rootPaneCheckingEnabled);
+        this.setResizable(false);
+        btn_import = new JButton("Iport Items");
+        btn_import.setSize(130,25);
+        btn_import.setLocation(400,330);
+        this.add(btn_import);
+        
+        btn_import.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+               import_data();
+            }
+        });
+        try
+        {
+
+
+            //Get iterator to all the rows in current sheet
+            //Iterator<Row> rowIterator = sheet.iterator();
+
+            //Get iterator to all cells of current row
+            //Iterator<Cell> cellIterator = rowIterator.cellIterator();
+            
+            InputStream input = new BufferedInputStream(new FileInputStream("c:/data.xls"));
+            POIFSFileSystem fs = new POIFSFileSystem( input );
+            HSSFWorkbook wb = new HSSFWorkbook(fs);
+            HSSFSheet sheet = wb.getSheetAt(0);
+            Iterator rows = sheet.rowIterator();
+            rows.next();
+             String[] columnNames = {"Name","id","Price","Quantity","manufacturer"};
+                 //"Cheque/cash","cheque no","Balance Amt.","Total Amt.","Vegetarian"};
+            DefaultTableModel dtm = new DefaultTableModel(columnNames , 0);
+            while( rows.hasNext() ) 
+            {  
+                HSSFRow row = (HSSFRow) rows.next();
+                
+                
+                Iterator cells = row.cellIterator();
+                
+                 dtm.addRow( new Object[]
+                {
+                    return_cell_value((HSSFCell) cells.next()),
+                        return_cell_value((HSSFCell) cells.next()),
+                        return_cell_value((HSSFCell) cells.next()),
+                        return_cell_value((HSSFCell) cells.next()),
+                         return_cell_value((HSSFCell) cells.next())
+                });
+                 table.setModel(dtm);
+            }
+        }
+        catch(Exception exe)
+        {
+            JOptionPane.showMessageDialog(null, exe);
+        }
+        JScrollPane  pane = new JScrollPane(table);
+       pane.setViewportView(table);
+        pane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS); 
+        pane.setSize(500,200);
+        pane.setLocation(10,10);
+        this.add(pane);
+
+        
+        
+        this.setVisible(true);
+    }
+    private Object return_cell_value(HSSFCell cell)
+    {
+        if(HSSFCell.CELL_TYPE_NUMERIC==cell.getCellType())
+                    return  (Object)( cell.getNumericCellValue());
+                    else
+                    if(HSSFCell.CELL_TYPE_STRING==cell.getCellType())
+                        return  (Object)( cell.getStringCellValue() );
+                    else if(HSSFCell.CELL_TYPE_BOOLEAN==cell.getCellType())
+                        return  (Object)( cell.getBooleanCellValue());
+                    else if(HSSFCell.CELL_TYPE_BLANK==cell.getCellType())
+                        return  (Object)( "BLANK" );
+                    else
+                        return  (Object)("Unknown cell type");
+    }
+    /*****************METHODs****************/
+    private void import_data()
+    {
+        String sql = "INSERT INTO product_list (item_name, item_id, item_price, item_producer_comp, item_stock_quantity) VALUES(?,?,?,?,?);";
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        try 
+ 
+        {
+            Class.forName("com.mysql.jdbc.Driver");
+            conn = (Connection) DriverManager.getConnection("jdbc:mysql://localhost:3306/master_db", "root", "kharap");
+            stmt = (PreparedStatement) conn.prepareStatement(sql);
+            //stmt = (PreparedStatement) conn.createStatement();
+            String name,id,price,producer,quantity,date;
+            for(int i = 1 ;i < table.getRowCount(); i++)
+            {
+            
+               double d = Double.parseDouble(table.getValueAt(i,3).toString());
+              
+                stmt.setString(1, table.getValueAt(i, 0).toString());
+                stmt.setString(2, table.getValueAt(i, 1).toString());
+                stmt.setString(3, table.getValueAt(i, 2).toString());
+                stmt.setString(4, table.getValueAt(i, 4).toString());
+                stmt.setInt(5, (int)d);
+                //stmt.setString(6,"121212" );
+                stmt.execute();
+            }
+            JOptionPane.showMessageDialog(null,"successfully! :D");
+        }
+        catch(Exception ex)
+        {
+            JOptionPane.showMessageDialog(null,"Insertion fail! :D");
+        }
+    }
+}
